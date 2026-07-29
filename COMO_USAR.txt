@@ -31,9 +31,11 @@ PREPARAÇÃO (só na primeira vez, no computador de quem vai rodar)
 USO TODO MÊS (quando chegar a receita do BTG / Bradesco)
 --------------------------------------------------------
 1) Abra o arquivo  informado.csv  (abre no Excel).
-   Na coluna "valor", cole o valor que cada instituição informou para cada
-   fundo. Aceita 1.234,56 (formato brasileiro). Salve o arquivo.
-   (Se quiser só calcular sem comparar, pode deixar em branco.)
+   Os nomes dos fundos já vêm na coluna A. Na coluna B ("valor"), digite o
+   valor que cada instituição informou (aceita 1.234,56 no formato brasileiro).
+   Salve com Ctrl+S. Se o Excel avisar sobre "perda de dados" / formato .csv,
+   clique em "Sim" / "Manter" (o arquivo PRECISA continuar como .csv).
+   (Se quiser só calcular sem comparar, pode deixar a coluna B em branco.)
 
 2) Dê dois cliques em:
       • Windows: Conferir_Receita.bat

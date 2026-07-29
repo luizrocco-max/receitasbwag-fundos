@@ -12,7 +12,6 @@ Exemplos:
 """
 
 import argparse
-import csv
 import sys
 
 from . import conferir
@@ -29,19 +28,47 @@ def _parse_valor(bruto: str) -> float:
     return float(bruto)
 
 
+def _ler_texto(caminho: str) -> str:
+    """Lê o arquivo tentando as codificações mais comuns (Excel salva em cp1252)."""
+    for enc in ("utf-8-sig", "cp1252", "latin-1"):
+        try:
+            with open(caminho, encoding=enc) as f:
+                return f.read()
+        except UnicodeDecodeError:
+            continue
+    with open(caminho, encoding="utf-8", errors="replace") as f:
+        return f.read()
+
+
 def _ler_informado(caminho: str) -> dict:
-    """Lê um CSV 'fundo,valor' (ou 'cnpj,valor') com os valores da instituição."""
+    """Lê um CSV 'fundo,valor' (ou 'cnpj,valor') com os valores da instituição.
+
+    Robusto para o Excel brasileiro: aceita separador ';' ou ',', valores com
+    vírgula decimal (43044,85), aspas e diferentes codificações de acento.
+    """
+    linhas = _ler_texto(caminho).splitlines()
+    # Detecta o separador de colunas: o Excel BR usa ';'; senão, vírgula.
+    sep = ";" if any(";" in ln for ln in linhas) else ","
+
     valores = {}
-    with open(caminho, encoding="utf-8-sig") as f:
-        leitor = csv.reader(f)
-        for linha in leitor:
-            if len(linha) < 2:
-                continue
-            chave = linha[0].strip()
-            try:
-                valores[chave] = _parse_valor(linha[1])
-            except ValueError:
-                continue  # provavelmente o cabeçalho
+    for linha in linhas:
+        linha = linha.strip()
+        if not linha:
+            continue
+        partes = [p.strip().strip('"').strip() for p in linha.split(sep)]
+        if len(partes) < 2:
+            continue
+        chave = partes[0]
+        resto = [p for p in partes[1:] if p != ""]
+        if not resto:
+            continue  # fundo sem valor preenchido -> ignora (não compara)
+        # Se o valor veio quebrado em pedaços (vírgula decimal num arquivo
+        # separado por vírgula), remonta como decimal brasileiro.
+        valor_txt = resto[0] if len(resto) == 1 else f"{resto[0]},{resto[1]}"
+        try:
+            valores[chave] = _parse_valor(valor_txt)
+        except ValueError:
+            continue  # provavelmente o cabeçalho
     return valores
 
 

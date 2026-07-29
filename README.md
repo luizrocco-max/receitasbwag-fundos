@@ -100,9 +100,11 @@ python -m conferidor --mes 2026-06 \
     --saida relatorios/conferencia_2026-06.xlsx
 ```
 
-O arquivo `--informado` é um CSV simples `fundo,valor` (aceita valores em formato
-brasileiro `1.234,56` ou americano `1234.56`) — é onde entram os números que o
-BTG/Bradesco enviam.
+O arquivo `--informado` é um CSV simples com as colunas `fundo` e `valor` — é
+onde entram os números que o BTG/Bradesco enviam. A leitura é **robusta para o
+Excel brasileiro**: aceita separador `;` (padrão do Excel BR) ou `,`, valores com
+vírgula decimal (`43044,85`) ou ponto (`43044.85`), aspas e acentos em qualquer
+codificação. O modelo `informado.csv` já vem no formato do Excel BR (`;`).
 
 ---
 
