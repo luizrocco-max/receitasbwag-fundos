@@ -1,0 +1,17 @@
+fundo,aba,cnpj,instituicao,regra,taxa_gestao,taxa_controladoria,piso_controladoria,taxa_cogestao,taxa_extra,taxa_controladoria_brad,piso_bradesco
+SABIA FIQ FIM CP,Repasse SABIÁ.,09.643.547/0001-80,BTG,gestao,0.0075,,,,,,
+EM5 FIM CP,Repasse EM5,10.325.784/0001-81,BTG,gestao,0.0035,,,,,,
+CASULO FIC FIM CP IE,Repasse CASULO,24.413.794/0001-83,BTG,gestao,0.0025,,,,,,
+CAVALI HAR FIM CP IE,Repasse CAVALIER HK,33.144.156/0001-03,BTG,gestao,0.0043,,,,,,
+MAITACA ACOES FC FIA,Repasse MAITACA,20.077.311/0001-66,BTG,gestao,0.013,,,,,,
+EXC FR 11 FIM CP IE,Repasse EXC FR 11 FIM CP IE,40.774.561/0001-62,BTG,gestao,0.0045,,,,,,
+SAO MANUEL I P Q FIM,Repasse SÃO MANUEL,40.882.081/0001-15,BTG,gestao,0.0055,,,,,,
+LHC FI MULT,Repasse LHC,28.077.177/0001-05,BTG,gestao,0.003,,,,,,
+MEMMO FIM,Repasse MEMMO,33.150.090/0001-56,BTG,gestao_menos_controladoria,0.0052,0.001,3386.36,,,,
+FIN 38 FAM FIM CP,Repasse FINANCE 38,33.145.932/0001-81,BTG,gestao_menos_controladoria,0.0043,0.001,3386.36,,,,
+SAMPA 91 FIM CP IE,Repasse SAMPA,41.033.604/0001-11,BTG,gestao_menos_controladoria,0.007,0.0028,3386.36,,,,
+SAMPA FIF RF INFRA,Repasse SAMPA INFRA,62.644.763/0001-22,BTG,gestao_menos_controladoria,0.007,0.0028,3386.36,,,,
+FALCÃO-PEREGRINO FIM,Repasse FALCÃO,60.356.889/0001-76,BTG,gestao_menos_controladoria,0.009,0,,,,,
+LUPA FIF CIC MM CP,Repasse LUPA (BRADESCO),31.008.130/0001-02,BRADESCO,bradesco_completo,0.0076,,,0.0003,0.0015,0.0003,3283
+BRAD WASTAFEL FIF CIC MM CP,Repasse WASTAFEL (BRADESCO),38.263.435/0001-00,BRADESCO,bradesco_simples,0.005,,,,,,
+BRAD KOELKAST II FIF,Repasse KOELKAST II (BRADESCO),50.980.475/0001-60,BRADESCO,bradesco_simples,0.0075,,,,,,

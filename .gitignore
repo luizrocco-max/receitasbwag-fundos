@@ -1,0 +1,15 @@
+# Cache dos arquivos da CVM (grandes, baixados sob demanda)
+dados_cvm/
+*.zip
+
+# Relatórios gerados
+relatorios/
+*.xlsx
+!exemplos/*.xlsx
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+.pytest_cache/

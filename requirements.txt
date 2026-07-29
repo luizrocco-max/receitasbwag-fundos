@@ -1,0 +1,2 @@
+openpyxl>=3.1
+# (o acesso à CVM usa apenas a biblioteca padrão do Python — urllib/zipfile/csv)
