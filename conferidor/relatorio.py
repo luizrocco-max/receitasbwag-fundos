@@ -35,14 +35,19 @@ def _cab(ws, linha, cols):
         c.border = borda
 
 
-def _secao(ws, linha, titulo, resultados):
-    """Escreve uma seção (BTG ou Bradesco) a partir da linha dada. Retorna próxima linha livre."""
+def _secao(ws, linha, titulo, resultados, cache):
+    """Escreve uma seção (BTG ou Bradesco) a partir da linha dada. Retorna próxima linha livre.
+
+    `cache` acumula {coordenada: valor} das células com fórmula, para injetar
+    depois como valor em cache (o arquivo abre já mostrando os números).
+    """
     ws.merge_cells(start_row=linha, start_column=2, end_row=linha, end_column=6)
     _titulo(ws, f"B{linha}", titulo)
     linha += 1
     _cab(ws, linha, ["Fundo", "Informado (R$)", "BWAG · CVM (R$)", "Diferença (R$)", "Diferença (%)"])
     linha += 1
     inicio = linha
+    soma = {"C": 0.0, "D": 0.0, "E": 0.0}
     for r in resultados:
         ws.cell(linha, 2, r["fundo"]).font = Font(name=_ARIAL, size=10)
         cinf = ws.cell(linha, 3, r["informado"])
@@ -54,10 +59,15 @@ def _secao(ws, linha, titulo, resultados):
             c.font = Font(name=_ARIAL, size=10)
         cpct.number_format = "0.00%"
         cpct.font = Font(name=_ARIAL, size=10)
-        # destaca a diferença: verde se ~zero, vermelho se relevante
         if r["diferenca"] is not None:
+            # destaca a diferença: verde se ~zero, vermelho se relevante
             cor = _VERDE if abs(r["diferenca"]) <= 1.0 else _VERMELHO
             cdif.fill = PatternFill("solid", fgColor=cor)
+            cache[f"E{linha}"] = r["diferenca"]
+            cache[f"F{linha}"] = round(r["diferenca"] / r["informado"], 6) if r["informado"] else 0
+        for col, val in (("C", r["informado"]), ("D", r["bwag"]), ("E", r["diferenca"])):
+            if isinstance(val, (int, float)):
+                soma[col] += val
         linha += 1
     # total
     ctot = ws.cell(linha, 2, "TOTAL")
@@ -68,6 +78,7 @@ def _secao(ws, linha, titulo, resultados):
         c.number_format = _MOEDA
         c.font = Font(name=_ARIAL, bold=True, size=10)
         c.fill = PatternFill("solid", fgColor=_CINZA)
+        cache[f"{L}{linha}"] = round(soma[L], 2)
     return linha + 2
 
 
@@ -91,11 +102,12 @@ def gerar(resultados, ano, mes, caminho):
     btg = [r for r in resultados if r["instituicao"] == "BTG"]
     brad = [r for r in resultados if r["instituicao"] == "BRADESCO"]
 
+    cache = {}
     linha = 3
     if btg:
-        linha = _secao(ws, linha, "GESTÃO — BTG", btg)
+        linha = _secao(ws, linha, "GESTÃO — BTG", btg, cache)
     if brad:
-        linha = _secao(ws, linha, "GESTÃO — BRADESCO", brad)
+        linha = _secao(ws, linha, "GESTÃO — BRADESCO", brad, cache)
 
     nota = ws.cell(
         linha + 1, 2,
@@ -109,7 +121,57 @@ def gerar(resultados, ano, mes, caminho):
     import os
     os.makedirs(os.path.dirname(os.path.abspath(caminho)), exist_ok=True)
     wb.save(caminho)
+    # Grava os valores em cache das fórmulas (o arquivo abre mostrando os números,
+    # mesmo antes de o Excel recalcular). As fórmulas continuam vivas.
+    _injetar_cache(caminho, {"Conferência": cache})
     return caminho
+
+
+def _injetar_cache(caminho, valores_por_aba):
+    """Injeta valores em cache (<v>) nas células com fórmula, via patch do XML.
+
+    openpyxl não grava o valor calculado junto da fórmula; este passo o adiciona,
+    para o arquivo abrir já exibindo os números (as fórmulas permanecem).
+    """
+    import re
+    import zipfile
+
+    wb = load_workbook_names(caminho)
+    with zipfile.ZipFile(caminho) as zin:
+        conteudo = {n: zin.read(n) for n in zin.namelist()}
+
+    for idx, titulo in enumerate(wb, start=1):
+        cache = valores_por_aba.get(titulo)
+        if not cache:
+            continue
+        chave = f"xl/worksheets/sheet{idx}.xml"
+        if chave not in conteudo:
+            continue
+        xml = conteudo[chave].decode("utf-8")
+        for coord, val in cache.items():
+            padrao = re.compile(r'(<c r="%s"[^>]*>)(.*?)(</c>)' % re.escape(coord), re.DOTALL)
+
+            def _sub(m):
+                interno = re.sub(r"<v\s*/>|<v>.*?</v>", "", m.group(2), flags=re.DOTALL)
+                return f"{m.group(1)}{interno}<v>{val}</v>{m.group(3)}"
+
+            xml = padrao.sub(_sub, xml, count=1)
+        conteudo[chave] = xml.encode("utf-8")
+
+    import os
+
+    tmp = caminho + ".tmp"
+    with zipfile.ZipFile(tmp, "w", zipfile.ZIP_DEFLATED) as zout:
+        for nome, dados in conteudo.items():
+            zout.writestr(nome, dados)
+    os.replace(tmp, caminho)
+
+
+def load_workbook_names(caminho):
+    """Retorna os nomes das abas na ordem (sheet1.xml, sheet2.xml, ...)."""
+    from openpyxl import load_workbook
+
+    return load_workbook(caminho, read_only=True).sheetnames
 
 
 def _aba_detalhe(wb, resultados):
