@@ -1,0 +1,57 @@
+=====================================================================
+   CONFERÊNCIA DE RECEITA DOS FUNDOS EXCLUSIVOS — BWAG
+   Guia rápido (para todos)
+=====================================================================
+
+O QUE ISTO FAZ
+--------------
+Calcula sozinho, a partir dos dados oficiais da CVM, quanto a BWAG tem a
+receber de taxa de gestão de cada fundo no mês. Depois compara com o valor
+que o BTG / Bradesco informaram e mostra as diferenças.
+
+O resultado é uma planilha Excel (Relatorio_AAAA-MM.xlsx) com 3 abas:
+  • Conferência ....... resumo por fundo, com a coluna DIFERENÇA destacada.
+  • Detalhe ........... a base de cálculo por fundo (regra, dias, componentes).
+  • Memória de Cálculo. dia a dia: PL, cota e ganho de cada dia — é a aba
+                        para bater com a base de cálculo que o banco envia.
+
+
+PREPARAÇÃO (só na primeira vez, no computador de quem vai rodar)
+---------------------------------------------------------------
+1) Deixe esta pasta dentro da pasta do Google Drive (a que sincroniza com
+   o PC). Assim o relatório gerado aparece no Drive para todos verem.
+2) Instale o Python:
+      • Windows / Mac: baixe em https://www.python.org/downloads/
+      • No Windows, marque "Add Python to PATH" na primeira tela.
+3) Dê dois cliques em:
+      • Windows: Instalar_uma_vez.bat
+      • Mac:     Instalar_uma_vez.command
+
+
+USO TODO MÊS (quando chegar a receita do BTG / Bradesco)
+--------------------------------------------------------
+1) Abra o arquivo  informado.csv  (abre no Excel).
+   Na coluna "valor", cole o valor que cada instituição informou para cada
+   fundo. Aceita 1.234,56 (formato brasileiro). Salve o arquivo.
+   (Se quiser só calcular sem comparar, pode deixar em branco.)
+
+2) Dê dois cliques em:
+      • Windows: Conferir_Receita.bat
+      • Mac:     Conferir_Receita.command
+
+3) Digite o mês de competência no formato AAAA-MM (ex.: 2026-07) e ENTER.
+
+4) O relatório abre sozinho. Confira a coluna DIFERENÇA:
+      • verde  = bateu (diferença de centavos).
+      • vermelho = divergência relevante — peça a base de cálculo do banco
+        e compare com a aba "Memória de Cálculo".
+
+
+DÚVIDAS COMUNS
+--------------
+• "Deu erro de Python": rode o Instalar_uma_vez de novo (passo de preparação).
+• "O nome do fundo mudou": os fundos são identificados pelo CNPJ, então o
+  nome da aba/planilha não precisa ser exato.
+• "Quero incluir/excluir um fundo": edite o arquivo fundos.csv (uma linha
+  por fundo). Em caso de dúvida, fale com quem mantém a ferramenta.
+=====================================================================

@@ -13,6 +13,26 @@ da cota e o PL, dia a dia, monta a tabela e compara com o que o **BTG** e o
 A planilha `Conferidor de Receita` original continua sendo a referência — esta
 ferramenta foi **validada reproduzindo exatamente os números dela** (ver abaixo).
 
+O relatório em Excel sai com **3 abas**: `Conferência` (resumo com as diferenças
+destacadas), `Detalhe` (base de cálculo por fundo) e `Memória de Cálculo`
+(**dia a dia**: PL, cota e ganho de cada dia — para bater com a base de cálculo
+que o banco envia quando há divergência).
+
+---
+
+## Uso fácil (sem terminal) — para todos
+
+Quem não quiser mexer em terminal usa o **kit de duplo-clique** (ver
+`COMO_USAR.txt`):
+
+1. Deixe esta pasta dentro da pasta do **Google Drive** que sincroniza com o PC
+   (assim o relatório gerado aparece no Drive para todos verem).
+2. **Uma vez:** dê dois cliques em `Instalar_uma_vez.bat` (Windows) ou
+   `Instalar_uma_vez.command` (Mac).
+3. **Todo mês:** abra `informado.csv`, cole os valores do BTG/Bradesco e salve;
+   depois dê dois cliques em `Conferir_Receita.bat` / `.command`, informe o mês
+   (`AAAA-MM`) e o relatório abre sozinho.
+
 ---
 
 ## Como funciona o cálculo
@@ -133,4 +153,11 @@ conferidor/
 fundos.csv       # registro dos fundos e taxas
 tests/           # teste de regressão (reproduz junho/2026)
 exemplos/        # exemplo de arquivo 'informado'
+
+# Kit de duplo-clique (sem terminal) — ver COMO_USAR.txt
+informado.csv            # modelo onde se colam os valores do banco (fundo,valor)
+Conferir_Receita.bat     # Windows: roda a conferência do mês
+Conferir_Receita.command # Mac: roda a conferência do mês
+Instalar_uma_vez.bat     # Windows: instala o necessário (primeira vez)
+Instalar_uma_vez.command # Mac: instala o necessário (primeira vez)
 ```
