@@ -117,6 +117,7 @@ def gerar(resultados, ano, mes, caminho):
     nota.font = Font(name=_ARIAL, italic=True, size=8, color="808080")
 
     _aba_detalhe(wb, resultados)
+    _aba_memoria(wb, resultados)
 
     import os
     os.makedirs(os.path.dirname(os.path.abspath(caminho)), exist_ok=True)
@@ -201,3 +202,117 @@ def _aba_detalhe(wb, resultados):
     widths = [30, 20, 12, 26, 10, 14, 14, 14, 16, 14, 12, 16]
     for i, w in enumerate(widths, start=1):
         ws.column_dimensions[get_column_letter(i)].width = w
+
+
+def _br_data(iso):
+    """'AAAA-MM-DD' -> 'DD/MM/AAAA' (vazio se None)."""
+    if not iso:
+        return ""
+    a, m, d = iso.split("-")
+    return f"{d}/{m}/{a}"
+
+
+_COTA_FMT = "#,##0.00000000"
+
+
+def _aba_memoria(wb, resultados):
+    """Memória de cálculo dia a dia: por fundo, uma linha por dia (PL, cota, ganho),
+    o subtotal de gestão e o fechamento até a receita líquida BWAG.
+
+    Feita para ser lida por qualquer pessoa e para bater com a base de cálculo do banco.
+    """
+    ws = wb.create_sheet("Memória de Cálculo")
+    ws.sheet_view.showGridLines = False
+    ws.column_dimensions["A"].width = 2
+    ws.column_dimensions["B"].width = 16
+    ws.column_dimensions["C"].width = 22
+    ws.column_dimensions["D"].width = 18
+    ws.column_dimensions["E"].width = 22
+
+    borda = Border(bottom=Side(style="thin", color="808080"))
+    linha = 2
+    for r in resultados:
+        memoria = r.get("memoria") or []
+
+        # Título do fundo
+        ws.merge_cells(start_row=linha, start_column=2, end_row=linha, end_column=5)
+        _titulo(ws, f"B{linha}", r["fundo"])
+        ws.row_dimensions[linha].height = 20
+        linha += 1
+
+        # Linha de contexto (CNPJ · instituição · regra · período)
+        periodo = f"{_br_data(r.get('data_inicio'))} a {_br_data(r.get('data_fim'))}"
+        ctx = (
+            f"CNPJ {r['cnpj']}  ·  {r['instituicao']}  ·  regra: {r['regra']}  ·  "
+            f"{r['dias']} dias úteis  ·  período {periodo}"
+        )
+        c = ws.cell(linha, 2, ctx)
+        ws.merge_cells(start_row=linha, start_column=2, end_row=linha, end_column=5)
+        c.font = Font(name=_ARIAL, italic=True, size=8, color="595959")
+        linha += 1
+
+        if not memoria:
+            c = ws.cell(linha, 2, "Sem dados da CVM para o período.")
+            c.font = Font(name=_ARIAL, italic=True, size=9, color="C00000")
+            linha += 2
+            continue
+
+        # Cabeçalho das colunas do dia a dia
+        for i, texto in enumerate(
+            ["Data", "PL do dia (R$)", "Cota", "Ganho de gestão no dia (R$)"], start=2
+        ):
+            hc = ws.cell(linha, i, texto)
+            hc.font = Font(name=_ARIAL, bold=True, size=10)
+            hc.fill = PatternFill("solid", fgColor=_CINZA)
+            hc.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+            hc.border = borda
+        linha += 1
+
+        inicio = linha
+        for d in memoria:
+            ws.cell(linha, 2, _br_data(d["data"])).font = Font(name=_ARIAL, size=10)
+            cpl = ws.cell(linha, 3, d["pl"])
+            cpl.number_format = _MOEDA
+            cpl.font = Font(name=_ARIAL, size=10)
+            cct = ws.cell(linha, 4, d.get("cota"))
+            cct.number_format = _COTA_FMT
+            cct.font = Font(name=_ARIAL, size=10)
+            cg = ws.cell(linha, 5, d["ganho_gestao"])
+            cg.number_format = _MOEDA
+            cg.font = Font(name=_ARIAL, size=10)
+            linha += 1
+
+        # Subtotal de gestão (soma dos ganhos diários)
+        cs = ws.cell(linha, 2, "Gestão (soma dos dias)")
+        cs.font = Font(name=_ARIAL, bold=True, size=10)
+        cg = ws.cell(linha, 5, f"=SUM(E{inicio}:E{linha-1})")
+        cg.number_format = _MOEDA
+        cg.font = Font(name=_ARIAL, bold=True, size=10)
+        cg.fill = PatternFill("solid", fgColor=_CINZA)
+        linha += 1
+
+        # Fechamento: componentes que reduzem a receita e o líquido final
+        comp = r.get("componentes") or {}
+        fechamento = []
+        if comp.get("cogestao"):
+            fechamento.append(("(−) Cogestão (piso mensal)", -comp["cogestao"]))
+        if comp.get("extra"):
+            fechamento.append(("(−) Taxa extra (piso mensal)", -comp["extra"]))
+        if comp.get("controladoria"):
+            fechamento.append(("(−) Controladoria", -comp["controladoria"]))
+        for rotulo, valor in fechamento:
+            cl = ws.cell(linha, 2, rotulo)
+            cl.font = Font(name=_ARIAL, size=10, color="595959")
+            cv = ws.cell(linha, 5, valor)
+            cv.number_format = _MOEDA
+            cv.font = Font(name=_ARIAL, size=10, color="595959")
+            linha += 1
+
+        cl = ws.cell(linha, 2, "= Receita líquida BWAG")
+        cl.font = Font(name=_ARIAL, bold=True, size=10, color="FFFFFF")
+        cl.fill = PatternFill("solid", fgColor=_AZUL)
+        cv = ws.cell(linha, 5, r["bwag"])
+        cv.number_format = _MOEDA
+        cv.font = Font(name=_ARIAL, bold=True, size=10, color="FFFFFF")
+        cv.fill = PatternFill("solid", fgColor=_AZUL)
+        linha += 2  # espaço entre fundos

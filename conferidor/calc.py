@@ -63,6 +63,13 @@ def periodo_pls(serie_mes_anterior: dict, serie_mes: dict):
     return entradas
 
 
+def ganho_gestao_dia(fundo, pl: float) -> float:
+    """Ganho de gestão de um único dia, na regra do fundo (composto BTG / linear Bradesco)."""
+    if fundo.regra in ("bradesco_simples", "bradesco_completo"):
+        return ganho_linear(fundo.taxa_gestao, pl)
+    return ganho_composto(fundo.taxa_gestao, pl)
+
+
 def receita_liquida(fundo, pls) -> dict:
     """Calcula a receita líquida do gestor no mês a partir dos PLs do período.
 

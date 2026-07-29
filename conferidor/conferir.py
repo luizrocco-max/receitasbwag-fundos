@@ -40,6 +40,18 @@ def calcular_mes(ano: int, mes: int, fundos=None, informado: dict = None):
         entradas = calc.periodo_pls(s_ant, s)
         pls = [pl for _, pl in entradas]
 
+        # Cota de cada dia (para a memória de cálculo), buscada nos dois meses.
+        cotas = {**cvm.serie_cota(serie_ant, f.cnpj), **cvm.serie_cota(serie, f.cnpj)}
+        memoria = [
+            {
+                "data": data,
+                "pl": pl,
+                "cota": cotas.get(data),
+                "ganho_gestao": calc.ganho_gestao_dia(f, pl),
+            }
+            for data, pl in entradas
+        ]
+
         if pls:
             componentes = calc.receita_liquida(f, pls)
         else:
@@ -66,6 +78,7 @@ def calcular_mes(ano: int, mes: int, fundos=None, informado: dict = None):
                 "data_inicio": entradas[0][0] if entradas else None,
                 "data_fim": entradas[-1][0] if entradas else None,
                 "componentes": componentes,
+                "memoria": memoria,
                 "bwag": liquido,
                 "informado": val_informado,
                 "diferenca": diferenca,

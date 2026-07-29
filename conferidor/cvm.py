@@ -87,3 +87,8 @@ def ler_series(ym: str, cnpjs=None) -> dict:
 def serie_pl(series_mes: dict, cnpj: str) -> dict:
     """Extrai apenas {data: pl} de um resultado de ler_series(), para um CNPJ."""
     return {data: reg["pl"] for data, reg in series_mes.get(cnpj, {}).items()}
+
+
+def serie_cota(series_mes: dict, cnpj: str) -> dict:
+    """Extrai {data: cota} de um resultado de ler_series(), para um CNPJ."""
+    return {data: reg["cota"] for data, reg in series_mes.get(cnpj, {}).items()}
