@@ -32,5 +32,9 @@ if errorlevel 1 (
 )
 
 echo.
-echo Pronto! Abrindo o relatorio...
+echo Pronto! O relatorio foi gerado e aberto: Relatorio_%MES%.xlsx
+echo.
+echo (Confira a tabela acima. Esta janela fica aberta - feche quando quiser.)
 start "" "Relatorio_%MES%.xlsx"
+echo.
+pause

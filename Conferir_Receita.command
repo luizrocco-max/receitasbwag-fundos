@@ -31,5 +31,7 @@ if [ $? -ne 0 ]; then
 fi
 
 echo
-echo "Pronto! Abrindo o relatorio..."
+echo "Pronto! O relatorio foi gerado e aberto: Relatorio_$MES.xlsx"
 open "Relatorio_$MES.xlsx"
+echo
+read -p "Confira a tabela acima. Pressione ENTER para fechar esta janela."
