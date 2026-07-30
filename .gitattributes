@@ -1,0 +1,6 @@
+# Scripts do Windows precisam de quebra de linha CRLF (senão o .bat fecha sozinho).
+*.bat text eol=crlf
+
+# Scripts do Mac/Linux usam LF.
+*.command text eol=lf
+*.sh      text eol=lf
