@@ -48,7 +48,12 @@ informe do fundo.)
 | Instituição | Fórmula do ganho diário |
 |---|---|
 | **BTG** (composto) | `TRUNC( ((1+taxa)^(1/252)) × PL − PL ; 2 )` |
-| **Bradesco** (linear) | `TRUNC( (taxa × PL) / 252 ; 2 )` |
+| **Bradesco** (linear) | `ARRED( (taxa × PL) / 252 ; 2 )` |
+
+> **Bradesco.** A receita da BWAG é a linha **GESTÃO** do relatório do Bradesco.
+> A `taxa_gestao` de cada fundo Bradesco já é essa taxa **líquida** (ex.: LUPA
+> 0,55%, WASTAFEL 0,50%, KOELKAST 0,75%). O ganho diário é **arredondado** a 2
+> casas (como a planilha), não truncado.
 
 O PL usado é o do **dia útil anterior** (convenção de competência da taxa).
 

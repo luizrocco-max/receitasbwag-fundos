@@ -11,7 +11,9 @@ Convenções descobertas na planilha original (validadas contra os dados da CVM)
    - Fundos BTG  -> capitalização composta:
         ganho = TRUNC( ((1+taxa)^(1/252)) * PL - PL , 2 )
    - Fundos Bradesco -> taxa linear (pro-rata 252):
-        ganho = TRUNC( (taxa * PL) / 252 , 2 )
+        ganho = ARREDONDA( (taxa * PL) / 252 , 2 )
+        (a receita da BWAG é a linha "GESTÃO" do Bradesco; a taxa de gestão de
+         cada fundo já é a taxa líquida que a BWAG recebe.)
 
 3. RECEITA LÍQUIDA DO MÊS (varia por fundo - ver `receita_liquida`):
    - gestao                       -> soma dos ganhos de gestão (taxa já líquida)
@@ -35,8 +37,12 @@ def ganho_composto(taxa: float, pl: float) -> float:
 
 
 def ganho_linear(taxa: float, pl: float) -> float:
-    """Ganho diário linear (pro-rata 252): TRUNC((taxa*PL)/252, 2)."""
-    return trunc2((taxa * pl) / 252)
+    """Ganho diário linear (pro-rata 252): ARREDONDA (taxa*PL)/252 para 2 casas.
+
+    O Bradesco/planilha arredonda cada dia para 2 casas (não trunca); usar
+    arredondamento aproxima melhor o valor informado pela instituição.
+    """
+    return round((taxa * pl) / 252, 2)
 
 
 def periodo_pls(serie_mes_anterior: dict, serie_mes: dict):

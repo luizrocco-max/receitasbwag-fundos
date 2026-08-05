@@ -33,9 +33,11 @@ ESPERADO = {
     "SAMPA 91 FIM CP IE": 32794.16,
     "SAMPA FIF RF INFRA": 6890.47,
     "FALCÃO-PEREGRINO FIM": 4259.89,
-    "LUPA FIF CIC MM CP": 102863.69,
-    "BRAD WASTAFEL FIF CIC MM CP": 12348.50,
-    "BRAD KOELKAST II FIF": 94511.85,
+    # Bradesco -> gestão líquida arredondada por dia; bate com o informado da
+    # instituição em junho (LUPA 102.863,77 / WASTAFEL 12.348,58 / KOELKAST 94.511,95).
+    "LUPA FIF CIC MM CP": 102863.78,
+    "BRAD WASTAFEL FIF CIC MM CP": 12348.58,
+    "BRAD KOELKAST II FIF": 94511.97,
 }
 
 
