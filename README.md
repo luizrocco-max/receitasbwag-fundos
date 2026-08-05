@@ -78,6 +78,12 @@ Cada arquivo mensal traz, por CNPJ e por dia útil: `VL_QUOTA` (cota),
 `VL_PATRIM_LIQ` (PL), entre outros. Os arquivos são baixados sob demanda e ficam
 em cache na pasta `dados_cvm/` (não versionada).
 
+> **Cache que se atualiza.** A CVM **retifica** o Informe Diário de meses
+> recentes (um PL/cota de um dia pode mudar depois de publicado). Por isso, para
+> meses dos últimos ~4 meses, a ferramenta **rebaixa o arquivo** se o cache tiver
+> mais de 12h — assim o cálculo sempre usa o dado mais atual. Meses antigos ficam
+> em cache. (Sem internet, usa o cache existente.)
+
 > **CNPJ da classe.** Desde a Resolução CVM 175 (2024), o informe identifica os
 > fundos pelo **CNPJ da classe** (`CNPJ_FUNDO_CLASSE`). É esse o CNPJ que deve
 > estar no `fundos.csv`. A ferramenta também lê o formato antigo (`CNPJ_FUNDO`).

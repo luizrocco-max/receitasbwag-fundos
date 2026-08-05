@@ -14,8 +14,10 @@ import csv
 import io
 import os
 import ssl
+import time
 import urllib.request
 import zipfile
+from datetime import date
 
 BASE_URL = "https://dados.cvm.gov.br/dados/FI/DOC/INF_DIARIO/DADOS/inf_diario_fi_{ym}.zip"
 
@@ -37,15 +39,45 @@ def _opener():
     return urllib.request.build_opener(*handlers)
 
 
-def baixar_mes(ym: str, forcar: bool = False) -> str:
-    """Baixa (se necessário) o zip do mês ym='AAAAMM' para o cache. Retorna o caminho."""
+def _mes_recente(ym: str, meses: int = 4) -> bool:
+    """True se o mês (AAAAMM) está dentro dos últimos `meses` meses.
+
+    A CVM ainda retifica o Informe Diário de meses recentes; meses antigos já
+    estão estabilizados e podem ficar em cache indefinidamente.
+    """
+    try:
+        ano, mes = int(ym[:4]), int(ym[4:6])
+    except (ValueError, IndexError):
+        return True
+    hoje = date.today()
+    idade = (hoje.year - ano) * 12 + (hoje.month - mes)
+    return 0 <= idade <= meses
+
+
+def baixar_mes(ym: str, forcar: bool = False, max_idade_horas: float = 12) -> str:
+    """Baixa (se necessário) o zip do mês ym='AAAAMM' para o cache. Retorna o caminho.
+
+    Para meses recentes (a CVM ainda pode corrigir o dado), rebaixa se o cache
+    estiver mais velho que `max_idade_horas`. Meses antigos usam sempre o cache.
+    Sem internet, cai de volta no cache existente.
+    """
     os.makedirs(CACHE_DIR, exist_ok=True)
     destino = os.path.join(CACHE_DIR, f"inf_diario_fi_{ym}.zip")
     if not forcar and os.path.exists(destino) and os.path.getsize(destino) > 0:
-        return destino
+        if not _mes_recente(ym):
+            return destino
+        idade_h = (time.time() - os.path.getmtime(destino)) / 3600
+        if idade_h < max_idade_horas:
+            return destino
+        # mês recente + cache velho -> tenta atualizar (mas mantém o cache se falhar)
     url = BASE_URL.format(ym=ym)
-    with _opener().open(url, timeout=180) as resp, open(destino, "wb") as out:
-        out.write(resp.read())
+    try:
+        with _opener().open(url, timeout=180) as resp, open(destino, "wb") as out:
+            out.write(resp.read())
+    except Exception:
+        if os.path.exists(destino) and os.path.getsize(destino) > 0:
+            return destino  # offline/erro de rede: usa o cache que já existe
+        raise
     return destino
 
 
