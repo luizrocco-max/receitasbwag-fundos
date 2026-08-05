@@ -96,8 +96,14 @@ def main(argv=None):
 
     if args.saida:
         from . import relatorio
-        caminho = relatorio.gerar(resultados, ano, mes, args.saida)
-        print(f"\nRelatório salvo em: {caminho}", file=sys.stderr)
+        try:
+            caminho = relatorio.gerar(resultados, ano, mes, args.saida)
+            print(f"\nRelatório salvo em: {caminho}", file=sys.stderr)
+        except PermissionError:
+            print(f"\n*** Não consegui salvar '{args.saida}'. ***", file=sys.stderr)
+            print("O arquivo parece estar ABERTO no Excel. Feche-o e rode de novo.",
+                  file=sys.stderr)
+            sys.exit(1)
 
 
 if __name__ == "__main__":

@@ -160,12 +160,26 @@ def _injetar_cache(caminho, valores_por_aba):
         conteudo[chave] = xml.encode("utf-8")
 
     import os
+    import time
 
     tmp = caminho + ".tmp"
     with zipfile.ZipFile(tmp, "w", zipfile.ZIP_DEFLATED) as zout:
         for nome, dados in conteudo.items():
             zout.writestr(nome, dados)
-    os.replace(tmp, caminho)
+    # No Windows o destino pode estar travado por um instante (Excel aberto ou o
+    # Google Drive sincronizando). Tenta algumas vezes; se não der, mantém o
+    # arquivo já salvo (o Excel recalcula as fórmulas ao abrir) e não quebra.
+    for tentativa in range(6):
+        try:
+            os.replace(tmp, caminho)
+            return
+        except PermissionError:
+            if tentativa < 5:
+                time.sleep(0.5)
+    try:
+        os.remove(tmp)
+    except OSError:
+        pass
 
 
 def load_workbook_names(caminho):
