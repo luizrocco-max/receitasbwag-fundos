@@ -119,3 +119,47 @@ def receita_liquida(fundo, pls) -> dict:
         }
 
     raise ValueError(f"Regra desconhecida para o fundo {fundo.fundo!r}: {regra!r}")
+
+
+def _ganho_da_regra(fundo):
+    """Fórmula de ganho diário conforme a instituição/regra do fundo."""
+    if fundo.regra in ("bradesco_simples", "bradesco_completo"):
+        return ganho_linear
+    return ganho_composto
+
+
+def receita_com_mudanca(fundo, entradas, mudanca) -> dict:
+    """Receita quando o fundo muda de taxa no meio do período (taxa segregada).
+
+    `entradas` = [(data 'AAAA-MM-DD', pl), ...] em ordem cronológica.
+    `mudanca`  = {"a_partir_de": 'AAAA-MM-DD', "taxa_gestao": float,
+                  "encerra_controladoria": bool}
+
+    - Gestão: cada dia na taxa vigente (a original antes da data de corte; a
+      nova a partir dela).
+    - Controladoria (regra gestao_menos_controladoria): se `encerra_controladoria`,
+      incide só nos dias do regime antigo e o piso mensal entra proporcional a
+      esses dias; caso contrário, segue incidindo no mês todo.
+    """
+    corte = mudanca["a_partir_de"]
+    nova_taxa = mudanca["taxa_gestao"]
+    ganho = _ganho_da_regra(fundo)
+
+    antes = [pl for d, pl in entradas if d < corte]
+    depois = [pl for d, pl in entradas if d >= corte]
+    total = len(entradas)
+
+    gestao = sum(ganho(fundo.taxa_gestao, pl) for pl in antes)
+    gestao += sum(ganho(nova_taxa, pl) for pl in depois)
+
+    ctrl = 0.0
+    if fundo.regra == "gestao_menos_controladoria" and fundo.taxa_controladoria:
+        if mudanca.get("encerra_controladoria"):
+            dias_ctrl, fator = antes, (len(antes) / total if total else 0.0)
+        else:
+            dias_ctrl, fator = [pl for _, pl in entradas], 1.0
+        ctrl = sum(ganho(fundo.taxa_controladoria, pl) for pl in dias_ctrl)
+        if fundo.piso_controladoria:
+            ctrl = max(ctrl, fundo.piso_controladoria * fator)
+
+    return {"gestao": gestao, "controladoria": ctrl, "liquido": round(gestao - ctrl, 2)}

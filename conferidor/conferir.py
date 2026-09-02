@@ -9,7 +9,7 @@ Fluxo:
 """
 
 from . import calc, cvm
-from .config import carregar_fundos
+from .config import carregar_fundos, mudanca_de
 
 
 def mes_anterior(ano: int, mes: int):
@@ -52,8 +52,12 @@ def calcular_mes(ano: int, mes: int, fundos=None, informado: dict = None):
             for data, pl in entradas
         ]
 
+        mudanca = mudanca_de(f.fundo)
         if pls:
-            componentes = calc.receita_liquida(f, pls)
+            if mudanca:
+                componentes = calc.receita_com_mudanca(f, entradas, mudanca)
+            else:
+                componentes = calc.receita_liquida(f, pls)
         else:
             componentes = {"liquido": None}
 

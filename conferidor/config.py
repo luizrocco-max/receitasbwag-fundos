@@ -56,6 +56,24 @@ def _num(valor) -> Optional[float]:
     return float(valor.replace(",", "."))
 
 
+# Fundos que tiveram virada de taxa no meio da vigência (ex.: taxa segregada).
+# A partir de 'a_partir_de' a gestão passa a valer 'taxa_gestao'; se
+# 'encerra_controladoria' for True, a controladoria deixa de ser descontada da
+# BWAG a partir dessa data (o piso do mês entra proporcional aos dias anteriores).
+MUDANCAS_TAXA = {
+    "MEMMO FIM": {
+        "a_partir_de": "2026-08-21",
+        "taxa_gestao": 0.0042,
+        "encerra_controladoria": True,
+    },
+}
+
+
+def mudanca_de(nome_fundo: str):
+    """Retorna a mudança de taxa configurada para o fundo, ou None."""
+    return MUDANCAS_TAXA.get(nome_fundo)
+
+
 def carregar_fundos(caminho: str = None):
     """Lê o fundos.csv e retorna a lista de objetos Fundo."""
     caminho = caminho or CAMINHO_PADRAO

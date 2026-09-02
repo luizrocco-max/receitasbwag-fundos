@@ -136,6 +136,24 @@ Uma linha por fundo. Colunas principais:
 Para **incluir um novo fundo**, basta adicionar uma linha. Para **mudar uma taxa**,
 edite a célula correspondente.
 
+### Virada de taxa no meio da vigência (taxa segregada)
+
+Quando um fundo muda de taxa numa data específica (ex.: o **MEMMO**, que em
+**21/08/2026** passou a taxa segregada — gestão de 0,52% para **0,42%** e sem
+controladoria a partir daí), registre isso em `MUDANCAS_TAXA`, no `config.py`:
+
+```python
+MUDANCAS_TAXA = {
+    "MEMMO FIM": {"a_partir_de": "2026-08-21", "taxa_gestao": 0.0042,
+                  "encerra_controladoria": True},
+}
+```
+
+O robô então usa, **por dia**, a taxa vigente naquela data. No mês da virada, a
+controladoria (piso) entra **proporcional aos dias do regime antigo**; a partir da
+data, sem controladoria. Meses anteriores ficam inalterados; meses posteriores
+saem já na taxa nova. (Validado: agosto/2026 do MEMMO = R$ 1.913,42, igual ao BTG.)
+
 ---
 
 ## Validação
