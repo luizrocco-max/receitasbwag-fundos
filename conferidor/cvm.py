@@ -14,6 +14,7 @@ import csv
 import io
 import os
 import ssl
+import sys
 import time
 import urllib.request
 import zipfile
@@ -59,26 +60,49 @@ def baixar_mes(ym: str, forcar: bool = False, max_idade_horas: float = 12) -> st
 
     Para meses recentes (a CVM ainda pode corrigir o dado), rebaixa se o cache
     estiver mais velho que `max_idade_horas`. Meses antigos usam sempre o cache.
-    Sem internet, cai de volta no cache existente.
+
+    Robustez de rede: se já existe cache, a atualização usa um tempo-limite curto
+    e, se a CVM demorar/estiver bloqueada, mantém o cache (não trava). Só um mês
+    sem cache nenhum usa um tempo-limite longo (precisa mesmo baixar).
     """
     os.makedirs(CACHE_DIR, exist_ok=True)
     destino = os.path.join(CACHE_DIR, f"inf_diario_fi_{ym}.zip")
-    if not forcar and os.path.exists(destino) and os.path.getsize(destino) > 0:
+    tem_cache = os.path.exists(destino) and os.path.getsize(destino) > 0
+
+    if not forcar and tem_cache:
         if not _mes_recente(ym):
             return destino
         idade_h = (time.time() - os.path.getmtime(destino)) / 3600
         if idade_h < max_idade_horas:
             return destino
-        # mês recente + cache velho -> tenta atualizar (mas mantém o cache se falhar)
-    url = BASE_URL.format(ym=ym)
+        # mês recente + cache velho -> tenta atualizar (mantém o cache se falhar)
+
+    timeout = 45 if tem_cache else 180
+    extra = "" if tem_cache else " — pode levar 1-2 min, sem barra de progresso"
+    print(f"Baixando dados da CVM de {ym} (~11 MB){extra}...", file=sys.stderr)
+    parcial = destino + ".part"
     try:
-        with _opener().open(url, timeout=180) as resp, open(destino, "wb") as out:
+        with _opener().open(url_do_mes(ym), timeout=timeout) as resp, open(parcial, "wb") as out:
             out.write(resp.read())
+        os.replace(parcial, destino)
     except Exception:
-        if os.path.exists(destino) and os.path.getsize(destino) > 0:
-            return destino  # offline/erro de rede: usa o cache que já existe
+        try:
+            os.remove(parcial)
+        except OSError:
+            pass
+        if tem_cache:
+            print(f"  (CVM indisponível/lenta — usando o arquivo já baixado de {ym})", file=sys.stderr)
+            return destino
+        print(f"\n*** Não consegui baixar os dados da CVM de {ym}. ***", file=sys.stderr)
+        print(f"Baixe manualmente no navegador:  {url_do_mes(ym)}", file=sys.stderr)
+        print("e salve o .zip (sem renomear) na subpasta 'dados_cvm'. Depois rode de novo.",
+              file=sys.stderr)
         raise
     return destino
+
+
+def url_do_mes(ym: str) -> str:
+    return BASE_URL.format(ym=ym)
 
 
 def ler_series(ym: str, cnpjs=None) -> dict:

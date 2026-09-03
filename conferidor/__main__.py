@@ -90,7 +90,14 @@ def main(argv=None):
 
     print(f"Baixando/lendo dados da CVM e calculando competência {ano}-{mes:02d} "
           f"({len(fundos)} fundos)...", file=sys.stderr)
-    resultados = conferir.calcular_mes(ano, mes, fundos=fundos, informado=informado)
+    import urllib.error
+    try:
+        resultados = conferir.calcular_mes(ano, mes, fundos=fundos, informado=informado)
+    except (urllib.error.URLError, TimeoutError, OSError) as e:
+        print(f"\n*** Não foi possível obter os dados da CVM ({e}). ***", file=sys.stderr)
+        print("Veja acima como baixar o arquivo manualmente, ou tente novamente mais tarde.",
+              file=sys.stderr)
+        sys.exit(1)
 
     print(conferir.resumo_texto(resultados))
 
