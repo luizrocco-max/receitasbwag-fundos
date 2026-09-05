@@ -82,6 +82,21 @@ def mudanca_de(nome_fundo: str):
     return MUDANCAS_TAXA.get(nome_fundo)
 
 
+# Data (do PL) a partir da qual a BWAG passou a receber a receita do fundo.
+# Dias anteriores não geram receita; o mês de início é parcial. Ex.: KOELKAST II
+# e WASTAFEL existiam antes, mas o repasse à BWAG começou em 21/05/2026
+# (maio/2026: 3.556,82 e 27.384,18, conforme o Bradesco).
+INICIO_RECEITA = {
+    "BRAD KOELKAST II FIF": "2026-05-21",
+    "BRAD WASTAFEL FIF CIC MM CP": "2026-05-21",
+}
+
+
+def inicio_de(nome_fundo: str):
+    """Retorna a data de início de recebimento do fundo, ou None."""
+    return INICIO_RECEITA.get(nome_fundo)
+
+
 def carregar_fundos(caminho: str = None):
     """Lê o fundos.csv e retorna a lista de objetos Fundo."""
     caminho = caminho or CAMINHO_PADRAO

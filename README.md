@@ -164,6 +164,36 @@ saem já na taxa nova.
 > `a_partir_de = "2026-08-18"` aqui. Validado contra o BTG: MEMMO agosto =
 > R$ 1.913,42; FINANCE 38 agosto reproduz 5.239,19 (0,43%) + 3.030,55 (0,33%).
 
+### Início de recebimento (`INICIO_RECEITA`)
+
+Quando a BWAG passa a receber de um fundo só a partir de uma data (o fundo já
+existia antes), registre em `INICIO_RECEITA`, no `config.py`. Dias anteriores
+não geram receita: meses inteiramente anteriores ficam **sem cálculo** (aparecem
+como "—") e o mês de início é **parcial** (só os dias com PL a partir da data).
+
+```python
+INICIO_RECEITA = {
+    "BRAD KOELKAST II FIF": "2026-05-21",
+    "BRAD WASTAFEL FIF CIC MM CP": "2026-05-21",
+}
+```
+
+Validado: maio/2026 = 27.384,18 (KOELKAST II) e 3.556,82 (WASTAFEL), como o
+Bradesco informou (o robô reproduz dentro do ruído de arredondamento do Bradesco).
+
+### Dashboard anual
+
+Consolida todos os meses do ano numa página HTML única (evolução mensal BTG x
+Bradesco, contribuição por instituição e por fundo, observações lidas da
+configuração e a tabela fundo x mês). Sem dependências — abre em qualquer navegador.
+
+```bash
+python -m conferidor --dashboard --ano 2026 --saida Dashboard_Receita_2026.html
+# --ate 2026-08 limita o último mês; o padrão é o mês anterior ao atual
+```
+
+No Windows, o `Gerar_Dashboard.bat` faz isso com dois cliques e abre a página.
+
 ---
 
 ## Validação
@@ -201,4 +231,5 @@ Conferir_Receita.bat     # Windows: roda a conferência do mês
 Conferir_Receita.command # Mac: roda a conferência do mês
 Instalar_uma_vez.bat     # Windows: instala o necessário (primeira vez)
 Instalar_uma_vez.command # Mac: instala o necessário (primeira vez)
+Gerar_Dashboard.bat      # Windows: gera o dashboard anual (HTML) e abre no navegador
 ```

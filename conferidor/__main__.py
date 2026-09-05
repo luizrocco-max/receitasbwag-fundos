@@ -74,12 +74,36 @@ def _ler_informado(caminho: str) -> dict:
 
 def main(argv=None):
     p = argparse.ArgumentParser(prog="conferidor", description="Conferência de receita dos fundos exclusivos (BWAG) via dados da CVM.")
-    p.add_argument("--mes", required=True, help="Mês de competência no formato AAAA-MM (ex.: 2026-06).")
+    p.add_argument("--mes", default=None, help="Mês de competência no formato AAAA-MM (ex.: 2026-06).")
     p.add_argument("--fundos", default=None, help="Caminho do fundos.csv (padrão: o do projeto).")
     p.add_argument("--informado", default=None, help="CSV com os valores informados pela instituição (fundo,valor).")
-    p.add_argument("--saida", default=None, help="Caminho do relatório Excel a gerar.")
+    p.add_argument("--saida", default=None, help="Caminho do relatório Excel (ou do dashboard HTML) a gerar.")
+    p.add_argument("--dashboard", action="store_true", help="Gera o dashboard anual (HTML) em vez da conferência mensal.")
+    p.add_argument("--ano", type=int, default=None, help="(dashboard) Ano a consolidar; padrão: ano atual.")
+    p.add_argument("--ate", default=None, help="(dashboard) Último mês a incluir, AAAA-MM; padrão: mês anterior ao atual.")
     args = p.parse_args(argv)
 
+    if args.dashboard:
+        from datetime import date as _date
+        from . import dashboard
+        ano = args.ano or _date.today().year
+        ate_mes = None
+        if args.ate:
+            try:
+                a, m = (int(x) for x in args.ate.split("-"))
+                ate_mes = m if a == ano else p.error("--ate deve ser do mesmo ano de --ano")
+            except ValueError:
+                p.error("--ate deve estar no formato AAAA-MM, ex.: 2026-08")
+        saida = args.saida or f"Dashboard_Receita_{ano}.html"
+        print(f"Calculando os meses de {ano} para o dashboard (a primeira vez pode demorar)...", file=sys.stderr)
+        caminho, dados = dashboard.gerar(ano, saida, ate_mes)
+        print(f"Dashboard salvo em: {caminho}  ({len(dados['meses'])} meses)", file=sys.stderr)
+        if dados["erros"]:
+            print(f"Aviso: parou em {dados['erros'][0]['mes']} (dados da CVM indisponíveis).", file=sys.stderr)
+        return
+
+    if not args.mes:
+        p.error("informe --mes AAAA-MM (ou use --dashboard)")
     try:
         ano, mes = (int(x) for x in args.mes.split("-"))
     except ValueError:

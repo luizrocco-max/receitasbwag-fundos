@@ -9,7 +9,7 @@ Fluxo:
 """
 
 from . import calc, cvm
-from .config import carregar_fundos, mudanca_de
+from .config import carregar_fundos, inicio_de, mudanca_de
 
 
 def mes_anterior(ano: int, mes: int):
@@ -38,6 +38,11 @@ def calcular_mes(ano: int, mes: int, fundos=None, informado: dict = None):
         s = cvm.serie_pl(serie, f.cnpj)
         s_ant = cvm.serie_pl(serie_ant, f.cnpj)
         entradas = calc.periodo_pls(s_ant, s)
+        # Início de recebimento: dias anteriores não geram receita (mês inicial parcial;
+        # meses inteiramente anteriores ficam sem cálculo).
+        inicio = inicio_de(f.fundo)
+        if inicio:
+            entradas = [(d, pl) for d, pl in entradas if d >= inicio]
         pls = [pl for _, pl in entradas]
 
         # Cota de cada dia (para a memória de cálculo), buscada nos dois meses.
