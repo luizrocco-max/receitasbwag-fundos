@@ -9,12 +9,79 @@ configuração) e a tabela fundo x mês.
 """
 
 import json
-from datetime import date
+from datetime import date, timedelta
 
-from . import conferir
+from . import calc, conferir, cvm
 from .config import carregar_fundos, inicio_de, mudanca_de
 
 MES = ["", "Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"]
+
+# Feriados nacionais (bancários) — base ANBIMA. Validado contra a CVM: o número
+# de dias úteis calculado bate com os dias publicados em jan–ago/2026.
+FERIADOS = {
+    (2026, 1, 1), (2026, 2, 16), (2026, 2, 17), (2026, 4, 3), (2026, 4, 21),
+    (2026, 5, 1), (2026, 6, 4), (2026, 9, 7), (2026, 10, 12), (2026, 11, 2),
+    (2026, 11, 15), (2026, 11, 20), (2026, 12, 25),
+    (2027, 1, 1), (2027, 2, 8), (2027, 2, 9), (2027, 3, 26), (2027, 4, 21),
+    (2027, 5, 1), (2027, 5, 27), (2027, 9, 7), (2027, 10, 12), (2027, 11, 2),
+    (2027, 11, 15), (2027, 11, 20), (2027, 12, 25),
+}
+
+
+def dias_uteis(ano: int, mes: int):
+    """Dias úteis do mês (sem sábado, domingo e feriado nacional), como ISO."""
+    d = date(ano, mes, 1)
+    out = []
+    while d.month == mes:
+        if d.weekday() < 5 and (d.year, d.month, d.day) not in FERIADOS:
+            out.append(d.isoformat())
+        d += timedelta(days=1)
+    return out
+
+
+def projetar(ano: int, desde_mes: int, quantos: int = 3, fundos_cfg=None):
+    """Projeta a receita dos próximos meses mantendo o PL parado no valor mais
+    recente da CVM. Só variam a taxa vigente de cada fundo e os dias úteis do mês.
+    Retorna None se não houver PL disponível."""
+    fundos_cfg = fundos_cfg or carregar_fundos()
+    ref_ano, ref_mes = (ano, desde_mes - 1) if desde_mes > 1 else (ano - 1, 12)
+    try:
+        serie = cvm.ler_series(f"{ref_ano}{ref_mes:02d}", [f.cnpj for f in fundos_cfg])
+    except Exception:
+        return None
+    pl, data_pl = {}, None
+    for f in fundos_cfg:
+        s_pl = cvm.serie_pl(serie, f.cnpj)
+        if not s_pl:
+            continue
+        ultimo = max(s_pl)
+        pl[f.fundo] = s_pl[ultimo]
+        data_pl = max(data_pl or ultimo, ultimo)
+    if not pl:
+        return None
+
+    labels, dias, btg, brad, total = [], [], [], [], []
+    for k in range(quantos):
+        m = desde_mes + k
+        a, m = (ano + (m - 1) // 12, (m - 1) % 12 + 1)
+        du = dias_uteis(a, m)
+        soma = {"BTG": 0.0, "BRADESCO": 0.0}
+        for f in fundos_cfg:
+            if f.fundo not in pl:
+                continue
+            ini = inicio_de(f.fundo)
+            entradas = [(d, pl[f.fundo]) for d in du if not ini or d >= ini]
+            if not entradas:
+                continue
+            mud = mudanca_de(f.fundo)
+            comp = (calc.receita_com_mudanca(f, entradas, mud) if mud
+                    else calc.receita_liquida(f, [p for _, p in entradas]))
+            soma[f.instituicao] += comp.get("liquido") or 0.0
+        labels.append(MES[m]); dias.append(len(du))
+        btg.append(round(soma["BTG"], 2)); brad.append(round(soma["BRADESCO"], 2))
+        total.append(round(soma["BTG"] + soma["BRADESCO"], 2))
+    return {"labels": labels, "dias": dias, "btg": btg, "brad": brad,
+            "total": total, "data_pl": data_pl}
 
 
 def coletar(ano: int, ate_mes: int = None):
@@ -48,9 +115,10 @@ def coletar(ano: int, ate_mes: int = None):
             v = r["bwag"]
             por_fundo[r["fundo"]]["valores"].append(None if v is None else round(v, 2))
             por_fundo[r["fundo"]]["dias"].append(r["dias"])
+    projecao = projetar(ano, len(meses) + 1, 3, fundos_cfg) if meses else None
     return {
         "ano": ano, "meses": meses, "labels": labels, "dias_mes": dias_mes,
-        "fundos": list(por_fundo.values()),
+        "fundos": list(por_fundo.values()), "projecao": projecao,
         "gerado": hoje.strftime("%d/%m/%Y"), "erros": erros,
     }
 
@@ -130,6 +198,10 @@ HEAD = r"""<title>Receita BWAG 2026</title>
   .legend span { display: inline-flex; align-items: center; gap: 6px; }
   .sw { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
   .sw.btg { background: var(--s-btg); } .sw.brad { background: var(--s-brad); }
+  .sw.proj { background: linear-gradient(90deg, var(--s-btg) 0 50%, var(--s-brad) 50% 100%); opacity: .45; }
+  .chart .proj { opacity: .45; }
+  .chart .sep { stroke: var(--axis); stroke-width: 1; }
+  .chart .septxt { fill: var(--muted); font-size: 9.5px; }
   svg.chart { width: 100%; height: auto; display: block; overflow: visible; }
   .chart text { font-family: inherit; font-size: 11px; fill: var(--muted); }
   .chart .lbl { fill: var(--ink-2); font-size: 10px; font-weight: 500; }
@@ -207,9 +279,9 @@ BODY = r"""<div class="wrap">
   <div class="grid-2">
     <section class="panel" aria-label="Evolução mensal">
       <h2>Evolução mensal</h2>
-      <div class="legend"><span><i class="sw btg"></i>BTG</span><span><i class="sw brad"></i>Bradesco</span></div>
+      <div class="legend"><span><i class="sw btg"></i>BTG</span><span><i class="sw brad"></i>Bradesco</span><span id="lg-proj" hidden><i class="sw proj"></i>Projeção</span></div>
       <svg class="chart" id="cols" viewBox="0 0 720 300" role="img" aria-label="Receita mensal por instituição"></svg>
-      <p class="hint">O “21d” embaixo de cada mês é o número de <b>dias contabilizados</b> (último dia útil do mês anterior até o penúltimo do mês). Passe o mouse ou use Tab para ver a quebra BTG/Bradesco de cada mês.</p>
+      <p class="hint" id="hint-cols"></p>
     </section>
     <section class="panel" aria-label="Contribuição por instituição">
       <h2>Contribuição por instituição</h2>
@@ -304,37 +376,58 @@ function bind(el, html) {
   el.addEventListener('blur', hideTip);
 }
 
-// ---- colunas empilhadas (SVG)
+// ---- colunas empilhadas: realizado + projeção (SVG)
 {
   const svg = $('#cols'), NS = 'http://www.w3.org/2000/svg';
+  const P = D.projecao, nP = P ? P.labels.length : 0, nT = n + nP;
+  if (P) $('#lg-proj').hidden = false;
   const W = 720, H = 300, L = 60, R = 12, T = 26, B = 40, pw = W - L - R, ph = H - T - B;
-  const maxV = Math.max(...totM, 1);
+  const maxV = Math.max(...totM, ...(P ? P.total : []), 1);
   const step = maxV > 600000 ? 250000 : 200000, top = Math.ceil(maxV / step) * step;
-  const y = v => T + ph - v / top * ph;
+  const y = v => T + ph - v / top * ph, base = T + ph;
   const el = (t, a) => { const e = document.createElementNS(NS, t); for (const k in a) e.setAttribute(k, a[k]); return e; };
   for (let v = 0; v <= top; v += step) {
     svg.appendChild(el('line', { x1: L, x2: L + pw, y1: y(v), y2: y(v), class: v === 0 ? 'axis' : 'grid' }));
     const t = el('text', { x: L - 8, y: y(v) + 4, 'text-anchor': 'end' }); t.textContent = v === 0 ? '0' : (v/1000) + ' mil'; svg.appendChild(t);
   }
-  const band = pw / n, cw = Math.min(24, band * .45);
+  const band = pw / nT, cw = Math.min(24, band * .45);
   const topRounded = (x, yy, w, h, r) => h <= 0 ? '' :
     `M${x},${yy+h} V${yy+r} Q${x},${yy} ${x+r},${yy} H${x+w-r} Q${x+w},${yy} ${x+w},${yy+r} V${yy+h} Z`;
-  for (let i = 0; i < n; i++) {
-    const cx = L + band * i + band / 2, x0 = cx - cw / 2;
-    const hB = instM.BTG[i] / top * ph, hR = instM.BRADESCO[i] / top * ph, base = T + ph;
-    const g = el('g', { class: 'col' });
+
+  // separador entre realizado e projeção
+  if (nP) {
+    const xs = L + band * n;
+    svg.appendChild(el('line', { x1: xs, x2: xs, y1: T - 6, y2: base, class: 'sep' }));
+    const st = el('text', { x: xs + 5, y: T - 10, class: 'septxt' }); st.textContent = 'projeção'; svg.appendChild(st);
+  }
+
+  const coluna = (k, vB, vR, vT, rotulo, dias, proj, tip, aria) => {
+    const cx = L + band * k + band / 2, x0 = cx - cw / 2;
+    const hB = vB / top * ph, hR = vR / top * ph;
+    const g = el('g', { class: proj ? 'col proj' : 'col' });
     g.appendChild(el('rect', { x: x0, y: base - hB, width: cw, height: hB, fill: 'var(--s-btg)' }));
     g.appendChild(el('path', { d: topRounded(x0, base - hB - (hR > 0 ? 2 : 0) - hR, cw, hR, 4), fill: 'var(--s-brad)' }));
-    { const destaque = (i === iMax || i === iLast);
-      const t = el('text', { x: cx, y: base - hB - hR - 8, 'text-anchor': 'middle', class: destaque ? 'lbl hi' : 'lbl' });
-      t.textContent = colLabel(totM[i]); g.appendChild(t); }
-    const m = el('text', { x: cx, y: H - 17, 'text-anchor': 'middle' }); m.textContent = D.labels[i]; g.appendChild(m);
-    if (D.dias_mes) { const dd = el('text', { x: cx, y: H - 5, 'text-anchor': 'middle', class: 'dd' }); dd.textContent = D.dias_mes[i] + 'd'; g.appendChild(dd); }
     svg.appendChild(g);
-    const hit = el('rect', { x: L + band * i, y: T, width: band, height: ph, class: 'hit', tabindex: 0, role: 'img',
-      'aria-label': `${mesNome(i)}: total ${brl(totM[i])}, BTG ${brl(instM.BTG[i])}, Bradesco ${brl(instM.BRADESCO[i])}` });
-    bind(hit, () => `<b>${mesNome(i)}</b><div class="r"><span>BTG</span><span>${brl(instM.BTG[i])}</span></div><div class="r"><span>Bradesco</span><span>${brl(instM.BRADESCO[i])}</span></div><div class="r"><span>Dias contabilizados</span><span>${D.dias_mes ? D.dias_mes[i] : '—'}</span></div><div class="r"><span><b>Total</b></span><span><b>${brl(totM[i])}</b></span></div>`);
-    svg.appendChild(hit);
+    const destaque = !proj && (k === iMax || k === iLast);
+    const t = el('text', { x: cx, y: base - hB - hR - 8, 'text-anchor': 'middle', class: destaque ? 'lbl hi' : 'lbl' });
+    t.textContent = colLabel(vT); if (proj) t.setAttribute('opacity', '.75'); svg.appendChild(t);
+    const m = el('text', { x: cx, y: H - 17, 'text-anchor': 'middle' }); m.textContent = rotulo; svg.appendChild(m);
+    const dd = el('text', { x: cx, y: H - 5, 'text-anchor': 'middle', class: 'dd' }); dd.textContent = dias + 'd'; svg.appendChild(dd);
+    const hit = el('rect', { x: L + band * k, y: T, width: band, height: ph, class: 'hit', tabindex: 0, role: 'img', 'aria-label': aria });
+    bind(hit, tip); svg.appendChild(hit);
+  };
+
+  for (let i = 0; i < n; i++) {
+    const d = D.dias_mes ? D.dias_mes[i] : '—';
+    coluna(i, instM.BTG[i], instM.BRADESCO[i], totM[i], D.labels[i], d, false,
+      () => `<b>${mesNome(i)}</b><div class="r"><span>BTG</span><span>${brl(instM.BTG[i])}</span></div><div class="r"><span>Bradesco</span><span>${brl(instM.BRADESCO[i])}</span></div><div class="r"><span>Dias contabilizados</span><span>${d}</span></div><div class="r"><span><b>Total</b></span><span><b>${brl(totM[i])}</b></span></div>`,
+      `${mesNome(i)}: total ${brl(totM[i])}, BTG ${brl(instM.BTG[i])}, Bradesco ${brl(instM.BRADESCO[i])}, ${d} dias`);
+  }
+  for (let j = 0; j < nP; j++) {
+    const nome = P.labels[j] + '/' + D.ano, d = P.dias[j];
+    coluna(n + j, P.btg[j], P.brad[j], P.total[j], P.labels[j], d, true,
+      () => `<b>${nome}</b> · projeção<div class="r"><span>BTG</span><span>${brl(P.btg[j])}</span></div><div class="r"><span>Bradesco</span><span>${brl(P.brad[j])}</span></div><div class="r"><span>Dias úteis</span><span>${d}</span></div><div class="r"><span><b>Total estimado</b></span><span><b>${brl(P.total[j])}</b></span></div>`,
+      `${nome}, projeção: total estimado ${brl(P.total[j])}, ${d} dias úteis`);
   }
 }
 
@@ -396,6 +489,11 @@ function bind(el, html) {
   <tbody>${ytdF.map(f => `<tr><td>${f.nome}</td><td class="i">${INST[f.inst]}</td>${f.valores.map((_, i) => cell(f, i)).join('')}<td>${nf.format(f.ytd)}</td><td>${pct(f.ytd/ytd)}</td></tr>`).join('')}</tbody>
   <tfoot>${diasRow}<tr><td>Total</td><td></td>${totM.map(v => `<td>${nf.format(v)}</td>`).join('')}<td>${nf.format(ytd)}</td><td>100%</td></tr></tfoot>`;
 }
+
+{ const P = D.projecao;
+  $('#hint-cols').innerHTML = 'O “21d” embaixo de cada mês é o número de <b>dias contabilizados</b> (último dia útil do mês anterior até o penúltimo do mês).'
+    + (P ? ` As colunas claras são <b>projeção</b>: mantêm o PL de ${brData(P.data_pl)} parado e variam só os dias úteis e a taxa vigente de cada fundo — não são previsão de mercado.` : '')
+    + ' Passe o mouse ou use Tab para ver a quebra de cada mês.'; }
 
 $('#foot').textContent = `Gerado em ${D.gerado} · Fonte: Portal de Dados Abertos da CVM (Informe Diário de Fundos).`;
 </script>
