@@ -117,14 +117,14 @@ def gerar(resultados, ano, mes, caminho):
     nota.font = Font(name=_ARIAL, italic=True, size=8, color="808080")
 
     _aba_detalhe(wb, resultados)
-    _aba_memoria(wb, resultados)
+    cache_mem = _aba_memoria(wb, resultados)
 
     import os
     os.makedirs(os.path.dirname(os.path.abspath(caminho)), exist_ok=True)
     wb.save(caminho)
     # Grava os valores em cache das fórmulas (o arquivo abre mostrando os números,
     # mesmo antes de o Excel recalcular). As fórmulas continuam vivas.
-    _injetar_cache(caminho, {"Conferência": cache})
+    _injetar_cache(caminho, {"Conferência": cache, "Memória de Cálculo": cache_mem})
     return caminho
 
 
@@ -241,15 +241,17 @@ def _aba_memoria(wb, resultados):
     ws.column_dimensions["B"].width = 16
     ws.column_dimensions["C"].width = 22
     ws.column_dimensions["D"].width = 18
-    ws.column_dimensions["E"].width = 22
+    ws.column_dimensions["E"].width = 12
+    ws.column_dimensions["F"].width = 22
 
     borda = Border(bottom=Side(style="thin", color="808080"))
     linha = 2
+    cache_mem = {}  # {coordenada: valor} dos subtotais (fórmulas), para o cache
     for r in resultados:
         memoria = r.get("memoria") or []
 
         # Título do fundo
-        ws.merge_cells(start_row=linha, start_column=2, end_row=linha, end_column=5)
+        ws.merge_cells(start_row=linha, start_column=2, end_row=linha, end_column=6)
         _titulo(ws, f"B{linha}", r["fundo"])
         ws.row_dimensions[linha].height = 20
         linha += 1
@@ -261,7 +263,7 @@ def _aba_memoria(wb, resultados):
             f"{r['dias']} dias úteis  ·  período {periodo}"
         )
         c = ws.cell(linha, 2, ctx)
-        ws.merge_cells(start_row=linha, start_column=2, end_row=linha, end_column=5)
+        ws.merge_cells(start_row=linha, start_column=2, end_row=linha, end_column=6)
         c.font = Font(name=_ARIAL, italic=True, size=8, color="595959")
         linha += 1
 
@@ -273,7 +275,8 @@ def _aba_memoria(wb, resultados):
 
         # Cabeçalho das colunas do dia a dia
         for i, texto in enumerate(
-            ["Data", "PL do dia (R$)", "Cota", "Ganho de gestão no dia (R$)"], start=2
+            ["Data", "PL do dia (R$)", "Cota", "Taxa gestão", "Ganho de gestão no dia (R$)"],
+            start=2
         ):
             hc = ws.cell(linha, i, texto)
             hc.font = Font(name=_ARIAL, bold=True, size=10)
@@ -291,7 +294,11 @@ def _aba_memoria(wb, resultados):
             cct = ws.cell(linha, 4, d.get("cota"))
             cct.number_format = _COTA_FMT
             cct.font = Font(name=_ARIAL, size=10)
-            cg = ws.cell(linha, 5, d["ganho_gestao"])
+            ctx = ws.cell(linha, 5, d.get("taxa"))
+            ctx.number_format = "0.00%"
+            ctx.font = Font(name=_ARIAL, size=10)
+            ctx.alignment = Alignment(horizontal="center")
+            cg = ws.cell(linha, 6, d["ganho_gestao"])
             cg.number_format = _MOEDA
             cg.font = Font(name=_ARIAL, size=10)
             linha += 1
@@ -299,10 +306,11 @@ def _aba_memoria(wb, resultados):
         # Subtotal de gestão (soma dos ganhos diários)
         cs = ws.cell(linha, 2, "Gestão (soma dos dias)")
         cs.font = Font(name=_ARIAL, bold=True, size=10)
-        cg = ws.cell(linha, 5, f"=SUM(E{inicio}:E{linha-1})")
+        cg = ws.cell(linha, 6, f"=SUM(F{inicio}:F{linha-1})")
         cg.number_format = _MOEDA
         cg.font = Font(name=_ARIAL, bold=True, size=10)
         cg.fill = PatternFill("solid", fgColor=_CINZA)
+        cache_mem[f"F{linha}"] = round(sum(d["ganho_gestao"] for d in memoria), 2)
         linha += 1
 
         # Fechamento: componentes que reduzem a receita e o líquido final
@@ -317,16 +325,18 @@ def _aba_memoria(wb, resultados):
         for rotulo, valor in fechamento:
             cl = ws.cell(linha, 2, rotulo)
             cl.font = Font(name=_ARIAL, size=10, color="595959")
-            cv = ws.cell(linha, 5, valor)
+            cv = ws.cell(linha, 6, valor)
             cv.number_format = _MOEDA
             cv.font = Font(name=_ARIAL, size=10, color="595959")
             linha += 1
 
-        cl = ws.cell(linha, 2, "= Receita líquida BWAG")
+        # (não começar o texto com "=": o openpyxl trataria como fórmula -> #NAME? no Excel)
+        cl = ws.cell(linha, 2, "Receita líquida BWAG")
         cl.font = Font(name=_ARIAL, bold=True, size=10, color="FFFFFF")
         cl.fill = PatternFill("solid", fgColor=_AZUL)
-        cv = ws.cell(linha, 5, r["bwag"])
+        cv = ws.cell(linha, 6, r["bwag"])
         cv.number_format = _MOEDA
         cv.font = Font(name=_ARIAL, bold=True, size=10, color="FFFFFF")
         cv.fill = PatternFill("solid", fgColor=_AZUL)
         linha += 2  # espaço entre fundos
+    return cache_mem

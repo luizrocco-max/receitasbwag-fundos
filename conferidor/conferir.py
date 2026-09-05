@@ -42,17 +42,23 @@ def calcular_mes(ano: int, mes: int, fundos=None, informado: dict = None):
 
         # Cota de cada dia (para a memória de cálculo), buscada nos dois meses.
         cotas = {**cvm.serie_cota(serie_ant, f.cnpj), **cvm.serie_cota(serie, f.cnpj)}
-        memoria = [
-            {
-                "data": data,
-                "pl": pl,
-                "cota": cotas.get(data),
-                "ganho_gestao": calc.ganho_gestao_dia(f, pl),
-            }
-            for data, pl in entradas
-        ]
-
         mudanca = mudanca_de(f.fundo)
+        ganho = calc._ganho_da_regra(f)
+        memoria = []
+        for data, pl in entradas:
+            # Taxa vigente no dia (respeita a virada de taxa, se houver).
+            taxa = f.taxa_gestao
+            if mudanca and data >= mudanca["a_partir_de"]:
+                taxa = mudanca["taxa_gestao"]
+            memoria.append(
+                {
+                    "data": data,
+                    "pl": pl,
+                    "cota": cotas.get(data),
+                    "taxa": taxa,
+                    "ganho_gestao": ganho(taxa, pl),
+                }
+            )
         if pls:
             if mudanca:
                 componentes = calc.receita_com_mudanca(f, entradas, mudanca)
