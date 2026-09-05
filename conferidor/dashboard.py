@@ -29,10 +29,11 @@ def coletar(ano: int, ate_mes: int = None):
     fundos_cfg = carregar_fundos()
     por_fundo = {
         f.fundo: {"nome": f.fundo, "inst": f.instituicao, "taxa": f.taxa_gestao,
-                  "inicio": inicio_de(f.fundo), "mudanca": mudanca_de(f.fundo), "valores": []}
+                  "inicio": inicio_de(f.fundo), "mudanca": mudanca_de(f.fundo),
+                  "valores": [], "dias": []}
         for f in fundos_cfg
     }
-    meses, labels, erros = [], [], []
+    meses, labels, dias_mes, erros = [], [], [], []
     for mes in range(1, ate_mes + 1):
         chave = f"{ano}-{mes:02d}"
         try:
@@ -42,11 +43,13 @@ def coletar(ano: int, ate_mes: int = None):
             break
         meses.append(chave)
         labels.append(MES[mes])
+        dias_mes.append(max(r["dias"] for r in res))  # janela cheia do mês (dias úteis)
         for r in res:
             v = r["bwag"]
             por_fundo[r["fundo"]]["valores"].append(None if v is None else round(v, 2))
+            por_fundo[r["fundo"]]["dias"].append(r["dias"])
     return {
-        "ano": ano, "meses": meses, "labels": labels,
+        "ano": ano, "meses": meses, "labels": labels, "dias_mes": dias_mes,
         "fundos": list(por_fundo.values()),
         "gerado": hoje.strftime("%d/%m/%Y"), "erros": erros,
     }
@@ -167,6 +170,9 @@ HEAD = r"""<title>Receita BWAG 2026</title>
   td.i { color: var(--muted); text-align: left; }
   td.na { color: var(--muted); }
   tfoot td { font-weight: 600; border-top: 1px solid var(--axis); border-bottom: 0; }
+  tfoot tr.dias td { font-weight: 500; color: var(--ink-2); border-top: 1px solid var(--axis); border-bottom: 1px solid var(--grid); }
+  tfoot tr.dias + tr td { border-top: 0; }
+  .pd { color: var(--muted); font-size: 10.5px; margin-left: 3px; }
   .tip { position: fixed; z-index: 10; pointer-events: none; background: var(--tip-bg); color: var(--tip-ink); padding: 8px 10px; border-radius: 6px; font-size: 12px; line-height: 1.4; box-shadow: 0 4px 14px rgba(0,0,0,.18); max-width: 280px; }
   .tip[hidden] { display: none; }
   .tip b { font-weight: 600; }
@@ -222,7 +228,7 @@ BODY = r"""<div class="wrap">
 
   <section class="panel" aria-label="Tabela mensal">
     <h2>Receita por fundo e mês</h2>
-    <p class="hint">“—” = mês sem recebimento pela BWAG (antes do início) ou sem dados.</p>
+    <p class="hint">“—” = mês sem recebimento pela BWAG (antes do início) ou sem dados. “(6 d)” = mês parcial, com os dias contabilizados. A linha “Dias contabilizados” mostra a janela cheia de cada mês (último dia útil do mês anterior até o penúltimo do mês).</p>
     <div class="tablewrap"><table id="tbl"></table></div>
   </section>
 
@@ -321,7 +327,7 @@ function bind(el, html) {
     svg.appendChild(g);
     const hit = el('rect', { x: L + band * i, y: T, width: band, height: ph, class: 'hit', tabindex: 0, role: 'img',
       'aria-label': `${mesNome(i)}: total ${brl(totM[i])}, BTG ${brl(instM.BTG[i])}, Bradesco ${brl(instM.BRADESCO[i])}` });
-    bind(hit, () => `<b>${mesNome(i)}</b><div class="r"><span>BTG</span><span>${brl(instM.BTG[i])}</span></div><div class="r"><span>Bradesco</span><span>${brl(instM.BRADESCO[i])}</span></div><div class="r"><span><b>Total</b></span><span><b>${brl(totM[i])}</b></span></div>`);
+    bind(hit, () => `<b>${mesNome(i)}</b><div class="r"><span>BTG</span><span>${brl(instM.BTG[i])}</span></div><div class="r"><span>Bradesco</span><span>${brl(instM.BRADESCO[i])}</span></div><div class="r"><span>Dias contabilizados</span><span>${D.dias_mes ? D.dias_mes[i] : '—'}</span></div><div class="r"><span><b>Total</b></span><span><b>${brl(totM[i])}</b></span></div>`);
     svg.appendChild(hit);
   }
 }
@@ -351,7 +357,7 @@ function bind(el, html) {
     row.innerHTML = `<div class="n"><i class="dot ${cls(f.inst)}"></i><span class="t">${f.nome}</span>${tagsDe(f)}</div>
       <div class="track"><div class="fill ${cls(f.inst)}" style="width:${f.ytd/max*100}%"></div></div>
       <div class="v">${brl(f.ytd)}</div><div class="p">${pct(f.ytd/ytd)}</div>`;
-    bind(row, () => `<b>${f.nome}</b> · ${INST[f.inst]}<div class="r"><span>Acumulado</span><span>${brl(f.ytd)}</span></div><div class="r"><span>Média mensal (${mesesCom} ${mesesCom===1?'mês':'meses'})</span><span>${brl(f.ytd/Math.max(1,mesesCom))}</span></div><div class="r"><span>Último mês</span><span>${f.valores[iLast]==null?'—':brl(f.valores[iLast])}</span></div><div class="r"><span>Participação</span><span>${pct(f.ytd/ytd)}</span></div>`);
+    bind(row, () => `<b>${f.nome}</b> · ${INST[f.inst]}<div class="r"><span>Acumulado</span><span>${brl(f.ytd)}</span></div><div class="r"><span>Média mensal (${mesesCom} ${mesesCom===1?'mês':'meses'})</span><span>${brl(f.ytd/Math.max(1,mesesCom))}</span></div><div class="r"><span>Último mês</span><span>${f.valores[iLast]==null?'—':brl(f.valores[iLast])}</span></div><div class="r"><span>Dias contabilizados no ano</span><span>${(f.dias||[]).reduce((a,b)=>a+b,0)}</span></div><div class="r"><span>Participação</span><span>${pct(f.ytd/ytd)}</span></div>`);
     box.appendChild(row);
   }
 }
@@ -376,10 +382,13 @@ function bind(el, html) {
 // ---- tabela
 {
   const t = $('#tbl');
-  const cell = v => v == null ? '<td class="na">—</td>' : `<td>${nf.format(v)}</td>`;
+  const cell = (f, i) => { const v = f.valores[i]; if (v == null) return '<td class="na">—</td>';
+    const parcial = D.dias_mes && f.dias && f.dias[i] < D.dias_mes[i] ? `<span class="pd">(${f.dias[i]} d)</span>` : '';
+    return `<td>${nf.format(v)}${parcial}</td>`; };
+  const diasRow = D.dias_mes ? `<tr class="dias"><td>Dias contabilizados</td><td></td>${D.dias_mes.map(d => `<td>${d}</td>`).join('')}<td>${D.dias_mes.reduce((a,b)=>a+b,0)}</td><td></td></tr>` : '';
   t.innerHTML = `<thead><tr><th>Fundo</th><th>Inst.</th>${D.labels.map(l => `<th>${l}</th>`).join('')}<th>Total ${D.ano}</th><th>%</th></tr></thead>
-  <tbody>${ytdF.map(f => `<tr><td>${f.nome}</td><td class="i">${INST[f.inst]}</td>${f.valores.map(cell).join('')}<td>${nf.format(f.ytd)}</td><td>${pct(f.ytd/ytd)}</td></tr>`).join('')}</tbody>
-  <tfoot><tr><td>Total</td><td></td>${totM.map(v => `<td>${nf.format(v)}</td>`).join('')}<td>${nf.format(ytd)}</td><td>100%</td></tr></tfoot>`;
+  <tbody>${ytdF.map(f => `<tr><td>${f.nome}</td><td class="i">${INST[f.inst]}</td>${f.valores.map((_, i) => cell(f, i)).join('')}<td>${nf.format(f.ytd)}</td><td>${pct(f.ytd/ytd)}</td></tr>`).join('')}</tbody>
+  <tfoot>${diasRow}<tr><td>Total</td><td></td>${totM.map(v => `<td>${nf.format(v)}</td>`).join('')}<td>${nf.format(ytd)}</td><td>100%</td></tr></tfoot>`;
 }
 
 $('#foot').textContent = `Gerado em ${D.gerado} · Fonte: Portal de Dados Abertos da CVM (Informe Diário de Fundos).`;
