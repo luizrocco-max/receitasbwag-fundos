@@ -132,7 +132,8 @@ HEAD = r"""<title>Receita BWAG 2026</title>
   .sw.btg { background: var(--s-btg); } .sw.brad { background: var(--s-brad); }
   svg.chart { width: 100%; height: auto; display: block; overflow: visible; }
   .chart text { font-family: inherit; font-size: 11px; fill: var(--muted); }
-  .chart .lbl { fill: var(--ink-2); font-size: 11px; font-weight: 500; }
+  .chart .lbl { fill: var(--ink-2); font-size: 10px; font-weight: 500; }
+  .chart .lbl.hi { fill: var(--ink); font-size: 11px; font-weight: 600; }
   .chart .dd { fill: var(--muted); font-size: 9.5px; }
   .chart .grid { stroke: var(--grid); stroke-width: 1; }
   .chart .axis { stroke: var(--axis); stroke-width: 1; }
@@ -208,7 +209,7 @@ BODY = r"""<div class="wrap">
       <h2>Evolução mensal</h2>
       <div class="legend"><span><i class="sw btg"></i>BTG</span><span><i class="sw brad"></i>Bradesco</span></div>
       <svg class="chart" id="cols" viewBox="0 0 720 300" role="img" aria-label="Receita mensal por instituição"></svg>
-      <p class="hint">O “21d” embaixo de cada mês é o número de <b>dias contabilizados</b> (último dia útil do mês anterior até o penúltimo do mês). Passe o mouse ou use Tab para ver os valores.</p>
+      <p class="hint">O “21d” embaixo de cada mês é o número de <b>dias contabilizados</b> (último dia útil do mês anterior até o penúltimo do mês). Passe o mouse ou use Tab para ver a quebra BTG/Bradesco de cada mês.</p>
     </section>
     <section class="panel" aria-label="Contribuição por instituição">
       <h2>Contribuição por instituição</h2>
@@ -248,6 +249,7 @@ const brl = v => 'R$ ' + nf.format(v);
 const compact = v => v >= 1e6 ? 'R$ ' + (v/1e6).toLocaleString('pt-BR',{maximumFractionDigits:2}) + ' mi'
                  : 'R$ ' + (v/1e3).toLocaleString('pt-BR',{maximumFractionDigits:1}) + ' mil';
 const pct = v => (v*100).toLocaleString('pt-BR',{maximumFractionDigits:1}) + '%';
+const colLabel = v => (v/1000).toLocaleString('pt-BR',{minimumFractionDigits:1, maximumFractionDigits:1}) + ' mil';
 const pctTaxa = v => (v*100).toLocaleString('pt-BR',{minimumFractionDigits:2, maximumFractionDigits:2}) + '%';
 const brData = iso => iso ? iso.split('-').reverse().join('/') : '';
 const INST = { BTG: 'BTG', BRADESCO: 'Bradesco' };
@@ -323,7 +325,9 @@ function bind(el, html) {
     const g = el('g', { class: 'col' });
     g.appendChild(el('rect', { x: x0, y: base - hB, width: cw, height: hB, fill: 'var(--s-btg)' }));
     g.appendChild(el('path', { d: topRounded(x0, base - hB - (hR > 0 ? 2 : 0) - hR, cw, hR, 4), fill: 'var(--s-brad)' }));
-    if (i === iMax || i === iLast) { const t = el('text', { x: cx, y: base - hB - hR - 8, 'text-anchor': 'middle', class: 'lbl' }); t.textContent = compact(totM[i]); g.appendChild(t); }
+    { const destaque = (i === iMax || i === iLast);
+      const t = el('text', { x: cx, y: base - hB - hR - 8, 'text-anchor': 'middle', class: destaque ? 'lbl hi' : 'lbl' });
+      t.textContent = colLabel(totM[i]); g.appendChild(t); }
     const m = el('text', { x: cx, y: H - 17, 'text-anchor': 'middle' }); m.textContent = D.labels[i]; g.appendChild(m);
     if (D.dias_mes) { const dd = el('text', { x: cx, y: H - 5, 'text-anchor': 'middle', class: 'dd' }); dd.textContent = D.dias_mes[i] + 'd'; g.appendChild(dd); }
     svg.appendChild(g);
