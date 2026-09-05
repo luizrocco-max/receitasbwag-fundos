@@ -138,21 +138,31 @@ edite a célula correspondente.
 
 ### Virada de taxa no meio da vigência (taxa segregada)
 
-Quando um fundo muda de taxa numa data específica (ex.: o **MEMMO**, que em
-**21/08/2026** passou a taxa segregada — gestão de 0,52% para **0,42%** e sem
-controladoria a partir daí), registre isso em `MUDANCAS_TAXA`, no `config.py`:
+Quando um fundo muda de taxa numa data específica (taxa segregada), registre isso
+em `MUDANCAS_TAXA`, no `config.py`. Já estão configurados:
+
+- **MEMMO**: gestão 0,52% → **0,42%** a partir do PL de **21/08/2026**.
+- **FINANCE 38**: gestão 0,43% → **0,33%** a partir do PL de **18/08/2026**.
 
 ```python
 MUDANCAS_TAXA = {
-    "MEMMO FIM": {"a_partir_de": "2026-08-21", "taxa_gestao": 0.0042,
-                  "encerra_controladoria": True},
+    "MEMMO FIM":         {"a_partir_de": "2026-08-21", "taxa_gestao": 0.0042,
+                          "encerra_controladoria": True},
+    "FIN 38 FAM FIM CP": {"a_partir_de": "2026-08-18", "taxa_gestao": 0.0033,
+                          "encerra_controladoria": True},
 }
 ```
 
 O robô então usa, **por dia**, a taxa vigente naquela data. No mês da virada, a
 controladoria (piso) entra **proporcional aos dias do regime antigo**; a partir da
 data, sem controladoria. Meses anteriores ficam inalterados; meses posteriores
-saem já na taxa nova. (Validado: agosto/2026 do MEMMO = R$ 1.913,42, igual ao BTG.)
+saem já na taxa nova.
+
+> **Convenção de data.** `a_partir_de` é a **data do PL**. O demonstrativo do BTG
+> rotula cada linha pelo **dia seguinte** ao PL (a linha "19/08" usa o PL de 18/08).
+> Portanto "último dia a 0,43% = linha 18/08 / novo a partir da linha 19/08" vira
+> `a_partir_de = "2026-08-18"` aqui. Validado contra o BTG: MEMMO agosto =
+> R$ 1.913,42; FINANCE 38 agosto reproduz 5.239,19 (0,43%) + 3.030,55 (0,33%).
 
 ---
 

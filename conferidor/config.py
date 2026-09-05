@@ -66,6 +66,14 @@ MUDANCAS_TAXA = {
         "taxa_gestao": 0.0042,
         "encerra_controladoria": True,
     },
+    # FINANCE 38: taxa global 0,43% até o PL de 17/08 (linha 18/08 do BTG);
+    # gestão segregada 0,33% a partir do PL de 18/08 (linha 19/08 do BTG).
+    # A data aqui é a do PL (o BTG rotula a linha pelo dia seguinte).
+    "FIN 38 FAM FIM CP": {
+        "a_partir_de": "2026-08-18",
+        "taxa_gestao": 0.0033,
+        "encerra_controladoria": True,
+    },
 }
 
 
